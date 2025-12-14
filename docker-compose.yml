@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # Laravel Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: classified-ads-app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    environment:
+      - .env.docker
+    depends_on:
+      - db
+      - redis
+    networks:
+      - classified-ads-network
+    ports:
+      - "8000:80"
+
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: classified-ads-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-classified_ads}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_USER: ${DB_USERNAME:-laravel}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - classified-ads-network
+    ports:
+      - "3307:3306"
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: classified-ads-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    networks:
+      - classified-ads-network
+    ports:
+      - "6379:6379"
+
+  # PhpMyAdmin (optional, for database management)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: classified-ads-phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+    depends_on:
+      - db
+    networks:
+      - classified-ads-network
+    ports:
+      - "8080:80"
+
+networks:
+  classified-ads-network:
+    driver: bridge
+
+volumes:
+  db-data:
+    driver: local
+  redis-data:
+    driver: local

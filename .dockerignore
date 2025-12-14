@@ -1,0 +1,55 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Docker
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Documentation
+README.md
+README_ASSESSMENT.md
+*.md
+
+# Tests
+tests/
+phpunit.xml
+.phpunit.result.cache
+
+# Development
+.env
+.env.example
+.editorconfig
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Storage (will be mounted as volume)
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/testing/*
+storage/framework/views/*
+
+# Vendor (will be installed in container)
+vendor/
+
+# Build artifacts
+public/hot
+public/storage
+public/mix-manifest.json

@@ -1,0 +1,436 @@
+{
+	"info": {
+		"_postman_id": "classified-ads-api-v1",
+		"name": "Classified Ads API - Laravel Assessment",
+		"description": "Complete API collection for testing the Classified Ads Platform with dynamic category fields.\n\n**Features:**\n- User Registration & Authentication\n- Create Ads with Dynamic Fields\n- List User Ads (Paginated)\n- View Specific Ad Details\n\n**Setup:**\n1. Import this collection into Postman\n2. Set the `base_url` variable to your API URL (default: http://localhost:8000/api/v1)\n3. Register a new user or login\n4. The auth token will be automatically saved and used for protected endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Register User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"auth_token\", jsonData.token);",
+									"    pm.collectionVariables.set(\"user_id\", jsonData.user.id);",
+									"    console.log(\"Token saved:\", jsonData.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"John Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"password\": \"password123\",\n    \"password_confirmation\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"register"
+							]
+						},
+						"description": "Register a new user and receive an API token.\n\n**Request Body:**\n- `name` (required): User's full name\n- `email` (required): Valid email address (must be unique)\n- `password` (required): Minimum 8 characters\n- `password_confirmation` (required): Must match password\n\n**Response (201):**\n```json\n{\n    \"message\": \"User registered successfully\",\n    \"user\": {\n        \"id\": 1,\n        \"name\": \"John Doe\",\n        \"email\": \"john.doe@example.com\"\n    },\n    \"token\": \"1|abc...xyz\"\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"auth_token\", jsonData.token);",
+									"    pm.collectionVariables.set(\"user_id\", jsonData.user.id);",
+									"    console.log(\"Token saved:\", jsonData.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"john.doe@example.com\",\n    \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"login"
+							]
+						},
+						"description": "Login with existing credentials and receive an API token."
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/logout",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"logout"
+							]
+						},
+						"description": "Logout the authenticated user (revokes current token)."
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication endpoints for user registration, login, and logout."
+		},
+		{
+			"name": "Categories",
+			"item": [
+				{
+					"name": "Get All Categories",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/categories",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"categories"
+							]
+						},
+						"description": "Get all available categories.\n\n**Public Endpoint:** No authentication required\n\n**Response (200):**\n```json\n{\n    \"data\": [\n        {\n            \"id\": 1,\n            \"name\": \"Vehicles\",\n            \"slug\": \"vehicles\",\n            \"description\": null,\n            \"parent_id\": null\n        }\n    ]\n}\n```"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Category Fields",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/categories/1/fields",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"categories",
+								"1",
+								"fields"
+							]
+						},
+						"description": "Get all available fields for a specific category.\n\n**Public Endpoint:** No authentication required\n\n**This endpoint is very helpful when:**\n- You get validation errors and want to see what fields are available\n- You're building a form and need to know what fields to show\n- You want to see valid options for select/radio fields\n\n**Response (200):**\nReturns complete information about all fields including:\n- Field keys, labels, and types\n- Required vs optional fields\n- Valid options for select/radio fields\n- Validation rules\n- Summary of field counts"
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints for browsing categories and their dynamic fields."
+		},
+		{
+			"name": "Ads",
+			"item": [
+				{
+					"name": "Create Ad - Cars for Sale (Category 2)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"ad_id\", jsonData.data.id);",
+									"    console.log(\"Ad created with ID:\", jsonData.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"category_id\": 2,\n    \"title\": \"2020 Toyota Camry - Excellent Condition\",\n    \"description\": \"Well maintained Toyota Camry 2020 model. Single owner, full service history. Clean interior and exterior.\",\n    \"price\": 15000,\n    \"fields\": {\n        \"make\": \"36\",\n        \"new_used\": \"2\",\n        \"mileage\": 35000,\n        \"year\": 2020,\n        \"petrol\": \"1\",\n        \"transmission\": \"1\",\n        \"body_type\": \"2\",\n        \"color\": \"1\",\n        \"price_type\": \"price\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/ads",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"ads"
+							]
+						},
+						"description": "Create a new ad for Cars for Sale (subcategory under Vehicles).\n\n**Category ID: 2** - Cars for Sale\n\n**Required Fields:**\n- `make`: Brand (select) - e.g., \"36\" for Toyota\n- `new_used`: Condition (select) - \"1\" = New, \"2\" = Used\n- `mileage`: Kilometers (number)\n- `year`: Year (number)\n- `petrol`: Fuel Type (select) - \"1\" = Gasoline, \"2\" = Diesel, \"3\" = Hybrid, \"4\" = Electric\n- `transmission`: Transmission Type (select) - \"1\" = Automatic, \"2\" = Manual\n- `body_type`: Car Type (select) - \"2\" = Sedan, \"8\" = SUV, \"4\" = Coupe, etc.\n- `color`: Color (select) - \"1\" = White, \"2\" = Black, \"3\" = Silver, etc.\n- `price_type`: Price Type (select) - \"price\" = Fixed Price\n\n**Tip:** Use GET /api/v1/categories/2/fields to see all available options and their values!"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Ad - Apartments for Rent (Category 12)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    console.log(\"Property Ad created with ID:\", jsonData.data.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"category_id\": 12,\n    \"title\": \"Modern 2BR Apartment in Beirut\",\n    \"description\": \"Spacious 2 bedroom apartment with stunning city views. Fully furnished with modern amenities.\",\n    \"price\": 1200,\n    \"fields\": {\n        \"property_type\": \"1\",\n        \"ownership\": \"primary\",\n        \"price_type\": \"price\",\n        \"rental_period\": \"monthly\",\n        \"rooms\": 2,\n        \"bathrooms\": 2,\n        \"ft\": 120\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/ads",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"ads"
+							]
+						},
+						"description": "Create a new ad for Apartments & Villas for Rent (subcategory under Properties).\n\n**Category ID: 12** - Apartments & Villas For Rent\n\n**Required Fields:**\n- `property_type`: Property Type (select) - \"1\" = Apartment, \"2\" = Villa, \"8\" = Penthouse, etc.\n- `ownership`: Ownership (select) - \"primary\" = By Owner, \"resale\" = By Company\n- `price_type`: Price Type (select) - \"price\" = Fixed Price, \"arranged\" = Negotiable\n- `rental_period`: Rental duration (select) - \"monthly\", \"yearly\", \"daily\"\n- `rooms`: Bedrooms (number)\n- `bathrooms`: Bathrooms (number)\n- `ft`: Size in m² (number)\n\n**Tip:** Use GET /api/v1/categories/12/fields to see all available options!"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Ad - Validation Error Example",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"category_id\": 2,\n    \"title\": \"Test Car Without Required Fields\",\n    \"description\": \"This will fail validation\",\n    \"price\": 15000\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/ads",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"ads"
+							]
+						},
+						"description": "This request demonstrates validation errors with helpful field information.\n\n**Category:** Cars for Sale (ID: 2)\n\n**Missing required fields:**\n- make (Brand)\n- new_used (Condition)\n- mileage (Kilometers)\n- year\n- petrol (Fuel Type)\n- transmission\n- body_type (Car Type)\n- color\n- price_type\n\n**Expected Response (422):**\nThe response will include:\n- Detailed error messages for each missing field\n- A `help` section with:\n  - All available fields for this category\n  - Valid options for select fields\n  - Link to GET /api/v1/categories/2/fields endpoint\n\n**Try it!** This shows how the enhanced validation errors help you understand what's needed."
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Ads (Paginated)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/my-ads?per_page=10&page=1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"my-ads"
+							],
+							"query": [
+								{
+									"key": "per_page",
+									"value": "10",
+									"description": "Number of items per page (default: 15)"
+								},
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Page number (default: 1)"
+								}
+							]
+						},
+						"description": "Get all ads posted by the authenticated user.\n\n**Required Authentication:** Bearer token\n\n**Query Parameters:**\n- `per_page` (optional): Items per page (default: 15)\n- `page` (optional): Page number (default: 1)\n\n**Response (200):**\nPaginated collection of ads with:\n- Ad details (title, description, price)\n- Category information\n- User information\n- All dynamic field values\n- Pagination metadata"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Specific Ad",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/ads/{{ad_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"ads",
+								"{{ad_id}}"
+							]
+						},
+						"description": "Retrieve a single ad with all details including dynamic fields.\n\n**Public Endpoint:** No authentication required\n\n**Response (200):**\nComplete ad details including:\n- Basic ad information\n- Category details\n- User information\n- All dynamic field values with their definitions\n\n**Response (404):**\n```json\n{\n    \"message\": \"Ad not found\"\n}\n```"
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints for managing classified ads with dynamic category-specific fields."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000/api/v1",
+			"type": "string"
+		},
+		{
+			"key": "auth_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "ad_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
