@@ -1,176 +1,78 @@
 # Classified Ads API
 
-Laravel API for classified ads with dynamic category fields, similar to OLX.
+A Laravel 12 REST API for classified ads whose categories each define their own fields, seeded with real category and field data from OLX Lebanon.
 
-## Requirements
+On a classifieds site, a car listing needs a make, year, and mileage, while an apartment listing needs bedrooms and a property type. Hardcoding a schema for every category doesn't scale. This API stores each category's fields and allowed options as data, builds validation rules for an ad at request time from its category, and returns helpful errors that list the fields the category accepts.
 
-- PHP 8.1+
-- MySQL/PostgreSQL
-- Composer
+## Features
 
-**OR**
+- **Dynamic category fields**: each category defines typed fields (`text`, `number`, `date`, `select`, `radio`, `checkbox`) with required flags, options, and optional custom validation rules.
+- **Validation built per request**: `StoreAdRequest` generates rules for `fields.*` from the selected category, including `in:` constraints for select and radio options.
+- **Helpful errors**: a `422` response includes a `help` block with the category, its available fields, which ones are required, the valid options, and the endpoint for fetching them.
+- **OLX Lebanon integration**: the seeder pulls categories (including parent/child relationships), fields, and options from the OLX Lebanon API.
+- **Cached upstream data**: OLX responses are cached for 24 hours. With Redis or Memcached the cache is tag-based, and other drivers fall back to per-key caching. The `olx:clear-cache` command clears it.
+- **Token auth**: Laravel Sanctum handles register, login, and logout, and issues bearer tokens.
+- **Ad browsing**: paginated listing with `category_id`, `status`, and free-text `search` (title or description) filters, plus a "my ads" endpoint.
+- **Transactional writes**: an ad and its field values are created in a single database transaction.
+- **Clean structure**: Actions for business logic, Repositories for data access, Form Requests for validation, and API Resources for response formatting.
+- **Docker setup**: PHP-FPM, Nginx, and Supervisor in the app container, with MySQL 8, Redis 7, and phpMyAdmin alongside.
+- **Postman collection** with ready-made requests and an auto-set token.
 
-- Docker & Docker Compose
+## Tech Stack
 
-## Installation
+PHP 8.4 · Laravel 12 · Laravel Sanctum · MySQL 8 · Redis 7 · Nginx · Supervisor · Docker Compose · PHPUnit
 
-### Option 1: Local Setup
+## Architecture
 
-```bash
-# Clone and install dependencies
-composer install
-
-# Setup environment
-cp .env.example .env
-php artisan key:generate
-
-# Configure database in .env
-DB_DATABASE=your_database
-DB_USERNAME=your_username
-DB_PASSWORD=your_password
-
-# Run migrations and seed with OLX data
-php artisan migrate
-php artisan db:seed
+```
+app/
+├── Actions/            # Business logic (Ad, Auth, Category)
+├── Repositories/       # Data access (AdRepository, CategoryRepository)
+├── Services/           # OlxApiService: external API + caching
+├── Http/
+│   ├── Controllers/Api/V1/  # AdController, AuthController, CategoryController
+│   ├── Requests/       # StoreAdRequest (dynamic rules), GetAdsRequest, Login/Register
+│   └── Resources/      # AdResource, CategoryResource, CategoryFieldResource, UserResource
+├── Models/             # Ad, AdFieldValue, Category, CategoryField, CategoryFieldOption, User
+└── Console/Commands/   # olx:clear-cache
 ```
 
-### Option 2: Docker Setup
-
-**Easy way (automated script):**
-```bash
-chmod +x docker-setup.sh
-./docker-setup.sh
+```mermaid
+erDiagram
+    CATEGORY ||--o{ CATEGORY : "parent of"
+    CATEGORY ||--o{ CATEGORY_FIELD : defines
+    CATEGORY_FIELD ||--o{ CATEGORY_FIELD_OPTION : "has options"
+    CATEGORY ||--o{ AD : contains
+    USER ||--o{ AD : posts
+    AD ||--o{ AD_FIELD_VALUE : has
+    CATEGORY_FIELD ||--o{ AD_FIELD_VALUE : "value for"
 ```
 
-**Manual way:**
-```bash
-# Copy environment file
-cp .env.example .env
+## API Overview
 
-# Start containers
-docker-compose up -d
+Base URL: `http://localhost:8000/api/v1`
 
-# Install dependencies
-docker-compose exec app composer install
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| `POST` | `/register` | – | Register a user and return a token |
+| `POST` | `/login` | – | Log in and return a token |
+| `POST` | `/logout` | Bearer | Revoke the current token |
+| `GET` | `/categories` | – | List categories |
+| `GET` | `/categories/{id}/fields` | – | A category's fields and options |
+| `GET` | `/ads` | – | Paginated ads (`per_page` ≤ 100, `category_id`, `status`, `search`) |
+| `GET` | `/ads/{id}` | – | A single ad |
+| `POST` | `/ads` | Bearer | Create an ad with dynamic fields |
+| `GET` | `/my-ads` | Bearer | The authenticated user's ads (paginated) |
 
-# Generate app key
-docker-compose exec app php artisan key:generate
+### Creating an ad
 
-# Run migrations and seed database
-docker-compose exec app php artisan migrate
-docker-compose exec app php artisan db:seed
-```
-
-**Docker Services:**
-- API: http://localhost:8000
-- phpMyAdmin: http://localhost:8080 (user: `laravel`, pass: `secret`)
-- MySQL: localhost:3307
-- Redis: localhost:6379
-
-**Useful Docker Commands:**
-```bash
-# Stop containers
-docker-compose down
-
-# View logs
-docker-compose logs -f app
-
-# Access container shell
-docker-compose exec app bash
-
-# Run artisan commands
-docker-compose exec app php artisan [command]
-
-# Fresh database (reset + seed)
-docker-compose exec app php artisan migrate:fresh --seed
-```
-
-## Quick Start
-
-### Local
-```bash
-php artisan serve
-# Base URL: http://localhost:8000/api/v1
-```
-
-### Docker
-```bash
-docker-compose up -d
-# Base URL: http://localhost:8000/api/v1
-```
-
-## Database Seeding
-
-The seeder pulls real data from OLX Lebanon API:
-
-```bash
-# Seed database (local)
-php artisan db:seed
-
-# Or with Docker
-docker-compose exec app php artisan db:seed
-
-# Fresh start (drop everything and reseed)
-php artisan migrate:fresh --seed
-
-# Or with Docker
-docker-compose exec app php artisan migrate:fresh --seed
-```
-
-**What gets seeded:**
-- 114 categories from OLX (13 parent + 101 subcategories)
-- All category-specific fields (make, year, bedrooms, etc.)
-- Field options (car brands, colors, property types, etc.)
-
-Data is cached for 24 hours. Clear cache to fetch fresh data:
-```bash
-php artisan olx:clear-cache
-```
-
-## Postman Collection
-
-Import `Classified_Ads_API.postman_collection.json` for testing. Contains examples for:
-- User registration/login
-- Browse categories and fields
-- Create ads with dynamic fields
-- Get user's ads
-
-Set these variables in Postman:
-- `base_url`: http://localhost:8000/api/v1
-- `token`: Your auth token (auto-set after login)
-
-## Main Endpoints
-
-### Auth
-```
-POST   /register
-POST   /login
-POST   /logout
-```
-
-### Categories
-```
-GET    /categories
-GET    /categories/{id}/fields
-```
-
-### Ads
-```
-GET    /ads
-POST   /ads
-GET    /ads/{id}
-GET    /my-ads
-```
-
-## Creating an Ad
-
-Each category has different required fields. Check available fields first:
+Each category has different fields, so check them first:
 
 ```bash
 GET /categories/2/fields
 ```
 
-Then create ad with dynamic fields:
+Then create the ad:
 
 ```json
 {
@@ -192,59 +94,152 @@ Then create ad with dynamic fields:
 }
 ```
 
-Validation errors include helpful info about required fields and valid options.
+If a field is missing or invalid, the `422` response lists the category's available fields and the valid options for each.
 
-## Features
+## Getting Started
 
-- **Dynamic Fields**: Categories have custom fields (text, number, select, etc.)
-- **OLX Integration**: Seeded with real OLX Lebanon categories and fields
-- **Smart Validation**: Field validation based on category
-- **Helpful Errors**: Validation errors show available fields
-- **Clean Architecture**: Action/Repository pattern with proper separation
+### Requirements
 
-## Testing
+- PHP 8.4+, Composer, and MySQL
+
+**or**
+
+- Docker and Docker Compose
+
+### Option 1: Local setup
 
 ```bash
-# Local
-php artisan test
+composer install
 
-# Docker
-docker-compose exec app php artisan test
-
-# Or use PHPUnit
-vendor/bin/phpunit
+cp .env.example .env
+php artisan key:generate
 ```
 
-## Code Structure
+Configure the database in `.env`:
 
-```
-app/
-├── Actions/          # Business logic
-├── Repositories/     # Data access
-├── Http/
-│   ├── Controllers/  # HTTP layer
-│   ├── Requests/     # Validation
-│   └── Resources/    # Response formatting
-├── Models/           # Eloquent models
-└── Services/         # External APIs
+```env
+DB_DATABASE=your_database
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
 ```
 
-See `ARCHITECTURE.md` for detailed docs.
+Run migrations and seed with OLX data:
 
-## Common Issues
+```bash
+php artisan migrate
+php artisan db:seed
+```
 
-**Docker: Permission denied on storage**
+Start the server:
+
+```bash
+php artisan serve
+# Base URL: http://localhost:8000/api/v1
+```
+
+### Option 2: Docker
+
+**Automated script:**
+
+```bash
+chmod +x docker-setup.sh
+./docker-setup.sh
+```
+
+The script performs these steps:
+
+1. Copies `.env.docker` to `.env` if `.env` doesn't exist.
+2. Builds and starts the containers.
+3. Installs Composer dependencies and generates the app key.
+4. Runs migrations and seeds the categories and fields.
+5. Caches the config.
+
+**Manual:**
+
+```bash
+cp .env.example .env              # or: cp .env.docker .env
+docker-compose up -d
+docker-compose exec app composer install
+docker-compose exec app php artisan key:generate
+docker-compose exec app php artisan migrate
+docker-compose exec app php artisan db:seed
+```
+
+> Inside the Compose network, MySQL is reachable at host `db` on port `3306`. Port `3307` is only the host-side mapping. If migrations can't connect from the container, set `DB_HOST=db` and `DB_PORT=3306` in `.env`.
+
+**Services:**
+
+| Service | URL |
+|---|---|
+| API | http://localhost:8000 |
+| phpMyAdmin | http://localhost:8080 (user `laravel`, password `secret`) |
+| MySQL | localhost:3307 |
+| Redis | localhost:6379 |
+
+**Useful commands:**
+
+```bash
+docker-compose down                                        # stop containers
+docker-compose logs -f app                                 # view logs
+docker-compose exec app bash                               # shell into the app container
+docker-compose exec app php artisan [command]              # run artisan
+docker-compose exec app php artisan migrate:fresh --seed   # reset + reseed
+```
+
+### Database seeding
+
+The seeder fetches live data from the OLX Lebanon API: parent categories and subcategories, each category's fields (make, year, bedrooms, etc.), and the field options (car brands, colors, property types, etc.).
+
+```bash
+php artisan db:seed                     # seed
+php artisan migrate:fresh --seed        # drop everything and reseed
+# Docker: prefix with `docker-compose exec app`
+```
+
+OLX data is cached for 24 hours. To clear the cache and fetch fresh data:
+
+```bash
+php artisan olx:clear-cache             # asks for confirmation
+php artisan olx:clear-cache --force     # skip confirmation
+php artisan olx:clear-cache --stats     # show cache stats first
+```
+
+### Postman
+
+Import `Classified_Ads_API.postman_collection.json`. It includes requests for registering and logging in, browsing categories and fields, creating ads (cars, apartments, and a validation-error example), and fetching your ads.
+
+Set these collection variables:
+
+- `base_url`: `http://localhost:8000/api/v1`
+- `token`: set automatically after login
+
+### Tests
+
+```bash
+php artisan test                                 # local
+docker-compose exec app php artisan test         # Docker
+vendor/bin/phpunit                               # PHPUnit directly
+```
+
+Tests run against in-memory SQLite. They cover ad creation and validation (including unauthenticated access) and OLX caching (caching, cache clearing, stats, the artisan command, and the health check).
+
+### Common issues
+
+**Docker: permission denied on storage**
+
 ```bash
 docker-compose exec app chmod -R 775 storage bootstrap/cache
 docker-compose exec app chown -R www-data:www-data storage bootstrap/cache
 ```
 
-**Seeding fails: Connection refused**
-Make sure database is running and credentials in `.env` are correct.
+**Seeding fails with "Connection refused":** make sure the database is running and the credentials in `.env` are correct.
 
-**Port already in use**
-Change ports in `docker-compose.yml` if 8000, 8080, or 3307 are taken.
+**Port already in use:** change the ports in `docker-compose.yml` if 8000, 8080, or 3307 are taken.
 
 ## License
 
 MIT
+
+---
+
+Built by [Chadi Choker](https://github.com/ChadiChoker) · [Portfolio](https://github.com/ChadiChoker/portfolio)
